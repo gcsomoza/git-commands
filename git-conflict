@@ -1,0 +1,34 @@
+#!/bin/bash
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+TARGET_BRANCH=$1
+TARGET_BRANCH_COPY="copy-check-conflict-$TARGET_BRANCH"
+
+TARGET_BRANCH_EXIST=$(git branch -a | grep -w "\s$TARGET_BRANCH$" -c)
+if [[ $TARGET_BRANCH_EXIST -eq 1 ]]
+then
+    git checkout $TARGET_BRANCH > /dev/null 2>&1
+else
+    echo "Branch $TARGET_BRANCH does not exist"
+    exit 0
+fi
+TARGET_BRANCH_IS_REMOTE=$(git branch -a | grep -w "\sremotes/origin/$TARGET_BRANCH$" -c)
+if [[ $TARGET_BRANCH_IS_REMOTE -eq 1 ]]
+then
+    git pull origin $TARGET_BRANCH > /dev/null 2>&1
+fi
+
+git branch -D $TARGET_BRANCH_COPY > /dev/null 2>&1
+git checkout -b $TARGET_BRANCH_COPY > /dev/null 2>&1
+
+HAS_CONFLICT=$(git merge --no-ff $CURRENT_BRANCH | grep CONFLICT -c)
+git merge --abort > /dev/null 2>&1
+if [[ $HAS_CONFLICT -eq 1 ]]
+then
+    echo "$CURRENT_BRANCH -> $TARGET_BRANCH (NG)"
+else
+    echo "$CURRENT_BRANCH -> $TARGET_BRANCH (OK)"
+fi
+
+git checkout $CURRENT_BRANCH > /dev/null 2>&1
+git branch -D $TARGET_BRANCH_COPY > /dev/null 2>&1
